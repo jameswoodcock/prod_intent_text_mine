@@ -1,0 +1,54 @@
+\documentclass[11pt]{beamer}
+\usetheme{Antibes}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{graphicx}
+%\author{}
+%\title{}
+%\setbeamercovered{transparent} 
+%\setbeamertemplate{navigation symbols}{} 
+%\logo{} 
+%\institute{} 
+%\date{} 
+%\subject{} 
+\begin{document}
+
+%\begin{frame}
+%\titlepage
+%\end{frame}
+
+%\begin{frame}
+%\tableofcontents
+%\end{frame}
+\begin{frame}
+\begin{itemize}
+\item{English stopwords from the SMART information retrieval system}
+\begin{itemize}
+\item{Retained the following: "during", "between", "into", "before", "after", "above", "below", "up", "on", "off", "over", "under", "again", "down", "in", "out", "further", "here", "there"}
+\end{itemize}
+\end{itemize}
+
+\end{frame}
+
+
+\begin{frame}{All systems - Frequency of attribute use}
+\begin{figure}
+\includegraphics[width=\linewidth]{./figures/all/all_responses}
+\end{figure}
+\end{frame}
+
+\begin{frame}{All systems - Raw word count}
+\begin{figure}
+\includegraphics[width=\linewidth]{./figures/all/word_frequencies_raw.pdf}
+\end{figure}
+\end{frame}
+
+\begin{frame}{All systems - Word count after removal of stop words}
+\begin{figure}
+\includegraphics[width=\linewidth]{./figures/all/word_frequencies.pdf}
+\end{figure}
+\end{frame}
+
+\end{document}

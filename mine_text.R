@@ -16,7 +16,8 @@ cname = file.path(".","texts")
 ##Load text mining libray and build corpus
 library(tm)
 docs <- Corpus(DirSource(cname))
-doc_labels <- summary(docs)
+docs_orig <- Corpus(DirSource(cname))
+doc_labels <- summary(docs_orig)
 
 ##Remove punctuation, numbers, and convert to lower case
 docs <- tm_map(docs, removePunctuation)
@@ -45,7 +46,7 @@ dev.off()
 
 #stopwords
 myStopwords <- setdiff(stopwords("english"),c("during","between","into","before","after","above","below","up","on","off","over","under","again","down","in","out","further","here","there"))
-myStopwords <- c(myStopwords,"also","nothing","bit","make","slightly","think","good")
+myStopwords <- c(myStopwords,"better","also","nothing","bit","make","slightly","think","good","downmix","sound","sounds")
 docs <- tm_map(docs, removeWords, myStopwords)
 
 ##Stem docs
@@ -55,9 +56,13 @@ docs <- tm_map(docs, stemDocument)
 #Calculate new freqeuncies
 docs <- tm_map(docs, PlainTextDocument)
 dtm <- DocumentTermMatrix(docs)
+tdm <- TermDocumentMatrix(docs)
 freq <- colSums(as.matrix(dtm))   
 ord <- order(freq)
 freq_ord <- sort(colSums(as.matrix(dtm)), decreasing=TRUE)  
+
+# Remove words that only occur once
+docs <- tm_map(docs, removeWords, names(subset(freq,freq==1)))
 
 Nwords = 75		#how many words to plot
 wf = data.frame(word=names(freq_ord), freq = freq_ord)	#Make data frame for plotting
@@ -71,30 +76,22 @@ pdf(paste(figPath,"word_frequencies.pdf",sep=""),width = 12, height = 8)
 p
 dev.off()
 
-# Remove stop words
-
-#docs <- tm_map(docs, removeWords, c(stopwords("english"),"nothing","bit","sounds","sound","downmix"))
-
-dtm <- DocumentTermMatrix(docs)
 rownames(dtm) <- rownames(doc_labels) 
-dtm 
-tdm <- TermDocumentMatrix(docs) 
 colnames(tdm) <- rownames(doc_labels)   
-tdm 
 
-# Remove words that only occur once
 library(graph)
 library(Rgraphviz)
 term.freq <- rowSums(as.matrix(tdm))
 term.freq <- subset(term.freq, term.freq >= 5)
 
 pdf(paste(figPath,"assoc_map.pdf",sep=""),width = 32, height = 36)
-plot(tdm,term = names(term.freq),corThreshold = 0.1,weighting=T)
+plot(tdm,term = names(term.freq),corThreshold = 0.2,weighting=T)
 dev.off()
 
 #  Start by removing sparse terms:   
-#dtms <- removeSparseTerms(dtm, 0.95) # This makes a matrix that is 10% empty space, maximum.   
-#inspect(dtms) 
+dtms <- removeSparseTerms(dtm, 0.94) # This makes a matrix that is 10% empty space, maximum.   
+#  Start by removing sparse terms:   
+tdms <- removeSparseTerms(tdm, 0.94) # This makes a matrix that is 10% empty space, maximum.   
 
 freq <- colSums(as.matrix(dtm))   
 ord <- order(freq)
@@ -102,26 +99,51 @@ ord <- order(freq)
 freq[head(ord)]
 freq[tail(ord)]
 
-d <- dist(t(dtms), method="euclidian")   
-fit <- hclust(d=d, method="ward")   
-fit
-cut = cutree(fit,k=5)
-plot(fit,hang=-1,cex=1)
-#rect.hclust(fit,k=5)
+d_tdm <- dist(t(tdm), method="euclidian")   
+fit_tdm <- hclust(d=d_tdm, method="ward")   
+fit_tdm
+cut_tdm = cutree(fit_tdm,k=5)
+pdf(paste(figPath,"dend_docs.pdf",sep=""),width = 48, height = 12)
+plot(fit_tdm,hang=-1,cex=1)
+rect.hclust(fit,k=8)
+dev.off()
+
+d_dtm <- dist(t(dtm), method="euclidian")   
+fit_dtm <- hclust(d=d_dtm, method="ward")   
+fit_dtm
+cut_dtm = cutree(fit_dtm,k=5)
+pdf(paste(figPath,"dend_term.pdf",sep=""),width = 48, height = 12)
+plot(fit_dtm,hang=-1,cex=1)
+rect.hclust(fit_dtm,k=8)
+dev.off()
 
 pdf(paste(figPath,"clustergram.pdf",sep=""),width = 32, height = 36)
-heatmap(as.matrix(dtms),hclustfun=function(d) hclust(d,method='ward.D2'),margins=c(20,20),scale='none',col=grey(seq(0.9
+heatmap(as.matrix(tdm),hclustfun=function(d) hclust(d,method='ward'),margins=c(20,20),scale='none',col=grey(seq(0.9
 ,0,-0.01)),main=paste("files x words"))
 dev.off()
 
 #Table of clustered terms
 cutMat <- as.matrix(cutree(fit,k=8))
 clusterTable <- split(row.names(cutMat),cutMat)
+clusterTable 
+
+writeCluster = 4
+for (i in 1:length(clusterTable [[writeCluster]])) {
+
+	writeLines(as.character(docs_orig[[clusterTable [[writeCluster]][i]]]))
+
+}
 
 ##kmeans clustering
 library(cluster)
 library(fpc)
-Nclust = 4   
-d <- dist(t(dtms), method="euclidian")   
+Nclust = 6   
+d <- dist(t(tdms), method="euclidian")   
 kfit <- kmeans(d, Nclust)   
-#clusplot(as.matrix(d), kfit$cluster, color=T, shade=T, labels=2, lines=0)  
+clusplot(as.matrix(d), kfit$cluster, color=T, shade=T, labels=2, lines=0)  
+
+for (i in 1:Nclust) {
+	cat(paste("cluster ", i, ": ", sep = ""))
+	s <- sort(kfit $centers[i, ], decreasing = T)
+	cat(names(s)[1:8], "\n")
+}
