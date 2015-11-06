@@ -52,6 +52,7 @@ docs <- tm_map(docs, PlainTextDocument)	#Make plain text
 
 ##Calculate freqeuncies
 dtm <- DocumentTermMatrix(docs)	#Make document term matrix
+tdm <- TermDocumentMatrix(docs)	#Make term document matrix
 freq_ord <- sort(colSums(as.matrix(dtm)), decreasing=TRUE)	#Get freqeuncies and order  
 
 Nwords = 75		#how many words to plot
@@ -67,10 +68,14 @@ dev.off()
 
 #Find associations for top 20 terms
 Nterms = 15
+corThreshold = 0.3	#Correlation threshold
 associations <- list()
 topTerms <- names(head(freq_ord,Nterms))
 for (i in 1:Nterms) {
-associations[[i]] <- findAssocs(dtm,topTerms[i],0.3)
+associations <- findAssocs(dtm,topTerms[i],corThreshold)
+for (j in 1:length(associations[[1]])){
+write(names(associations[[1]][j]),file=paste(figPath,topTerms[i],'.txt'),append=TRUE)	#Write terms that correlate to file
+}
 write.table(associations[[i]],file=paste(figPath,"associations_",topTerms[i],'.txt',sep=""),sep=" ")
 }
 print(associations)
