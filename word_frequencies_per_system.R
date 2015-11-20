@@ -6,6 +6,7 @@ library(tm)
 library(ggplot2)
 library(SnowballC)   
 
+set.seed(12345)
 system = "all"
 
 #set some paths
@@ -23,12 +24,19 @@ docs <- tm_map(docs, tolower) 			#Force lower case
 docs <- tm_map(docs, stripWhitespace) 	#Remove white space
 
 
+
 ##Make a copy of docs before we start removing stop words
 docs_raw <- docs
 docs_raw <- tm_map(docs_raw, PlainTextDocument)	#Make plain text
 
 ##Calculate raw freqeuncies
 dtm_raw <- DocumentTermMatrix(docs_raw)	#Make document term matrix
+
+pdf(paste(figPath,"terms_in_doc_matrix.pdf",sep=""),width = 12, height = 8)
+hist(apply(dtm_raw, 1, sum), xlab="Number of Terms in Term-Document Matrix", breaks=60)
+dev.off()
+
+
 freq_raw_ord <- sort(colSums(as.matrix(dtm_raw)), decreasing=TRUE)	#Get freqeuncies and order  
 
 Nwords = 75		#how many words to plot
@@ -82,9 +90,9 @@ associations <- list()
 topTerms <- names(head(freq_ord,Nterms))
 for (i in 1:Nterms) {
 associations <- findAssocs(dtm,topTerms[i],corThreshold)
-for (j in 1:length(associations[[1]])){
-write(names(associations[[1]][j]),file=paste(figPath,i,topTerms[i],'.txt'),append=TRUE)
-}
+#for (j in 1:length(associations[[1]])){
+#write(names(associations[[1]][j]),file=paste(figPath,i,topTerms[i],'.txt'),append=TRUE)
+#}
 #write.table(associations[[i]],file=paste(figPath,"associations_",topTerms[i],'.txt',sep=""),sep=" ")
 }
 print(associations)
@@ -176,17 +184,28 @@ for(i in 1:100){
 }
 names(cost_df) <- c("cluster", "cost")
 
+#Calculate lm's for emphasis
+fit1 <- lm(cost_df$cost[1:15] ~ cost_df$cluster[1:15])
+fit2 <- lm(cost_df$cost[16:59] ~ cost_df$cluster[16:59])
+fit3 <- lm(cost_df$cost[60:100] ~ cost_df$cluster[60:100])
+
+cost_df$fitted <- ifelse(cost_df$cluster <16, (fit1[[1]][1] + fit1[[1]][2]*cost_df$cluster), 
+                         ifelse(cost_df$cluster <60, (fit2[[1]][1] + fit2[[1]][2]*cost_df$cluster),
+                                (fit3[[1]][1] + fit3[[1]][2]*cost_df$cluster)))
+
 #Cost plot
+pdf(paste(figPath,"scree_plot.pdf",sep=""),width = 12, height = 8)
 ggplot(data=cost_df, aes(x=cluster, y=cost, group=1)) + 
-  theme_bw(base_family="Garamond") + 
+  theme_bw() + 
   geom_line(colour = "darkgreen") +
   theme(text = element_text(size=20)) +
-  ggtitle("Reduction In Cost For Values of 'k'\n") +
+#  ggtitle("Reduction In Cost For Values of 'k'\n") +
   xlab("\nClusters") + 
   ylab("Within-Cluster Sum of Squares\n") +
-  scale_x_continuous(breaks=seq(from=0, to=100, by= 10))
-
-Nclusters_kmeans = 30
+  scale_x_continuous(breaks=seq(from=0, to=100, by= 10)) +
+  geom_line(aes(y= fitted), linetype=2)
+dev.off()
+Nclusters_kmeans = 25
 kmeans <- kmeans(dtm,Nclusters_kmeans)
 
 #Table of clustered terms
@@ -229,10 +248,17 @@ for (writeCluster in 1:Nclusters_kmeans){
     
     
     freq_ordCluster <- sort(colSums(as.matrix(dtmCluster)), decreasing=TRUE)
-    mainClusterTerm_kmeans[[writeCluster]] <- head(freq_ordCluster,5)
+    mainClusterTerm_kmeans[[writeCluster]] <- head(freq_ordCluster,10)
     write("\n",file=paste(figPath,"clusters_kmeans.txt",sep=""),append=TRUE)
     write.table(mainClusterTerm_kmeans[[writeCluster]],file=paste(figPath,"clusters_kmeans.txt",sep=""),append=TRUE,col.names = FALSE,quote=FALSE)
 #    write(mainClusterTerm_kmeans[[writeCluster]],file=paste(figPath,"clusters_kmeans.txt",sep=""),append=TRUE)
+    inGroup <- which(kmeans$cluster==writeCluster)
+    within <- dtm[inGroup,]
+    out <- dtm[-inGroup,]
+    words <- apply(within,2,mean) - apply(out,2,mean)
+    labels <- order(words, decreasing=T)[1:10]
+    write("\n",file=paste(figPath,"clusters_kmeans.txt",sep=""),append=TRUE)
+    write.table(names(words)[labels],file=paste(figPath,"clusters_kmeans.txt",sep=""),append=TRUE,col.names = FALSE,quote=FALSE)
     }
   }
 
@@ -244,12 +270,12 @@ for (writeCluster in 1:Nclusters_kmeans){
 attributeHeaders <- read.csv("attribute_headers.csv",sep=",",header=FALSE)
 attributesAll = rep(0,26)
 
-for (j in 1:Nclusters){
+for (j in 1:Nclusters_kmeans){
 clusterID = j
 attributesTotal = rep(0,26)
 
-	for (i in 1:length(clusterTable[[clusterID]])){
-	attributes <- read.csv(paste('./texts_all/attributes/',clusterTable[[clusterID]][i],sep=""),sep=",",header=FALSE)
+	for (i in 1:length(clusterTable_kmeans[[clusterID]])){
+	attributes <- read.csv(paste('./texts_all/attributes/',clusterTable_kmeans[[clusterID]][i],sep=""),sep=",",header=FALSE)
 	attributesTotal <- attributesTotal + as.numeric(attributes)
 	attributesAll = attributesAll + + as.numeric(attributes)
 	}	#end of i
