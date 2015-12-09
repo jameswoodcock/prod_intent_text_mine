@@ -112,73 +112,7 @@ write(topTerms,file=paste(figPath,system,"_top_terms.txt",sep=""))
 ###################################
 ####CLUSTERING#####################
 ###################################
-Nclusters = 30		#40 seems to give good results for all
 
-d_tdm <- dist(t(tdm), method="euclidian")   
-fit_tdm <- hclust(d=d_tdm, method="ward")   
-fit_tdm
-cut_tdm = cutree(fit_tdm,k=Nclusters)
-pdf(paste(figPath,"dend_docs.pdf",sep=""),width = 48, height = 12)
-plot(fit_tdm,hang=-1,cex=1)
-rect.hclust(fit_tdm,k=Nclusters)
-dev.off()
-
-#Table of clustered terms
-cutMat <- as.matrix(cutree(fit_tdm,k=Nclusters))
-clusterTable <- split(row.names(cutMat),cutMat)
-clusterTable
-
-bigClusterList <- list()
-mainClusterTerm <- list()
-write("",file=paste(figPath,"clusters.txt",sep=""),append=FALSE)	#Clear file
-for (writeCluster in 1:Nclusters){
-  listClusters <- list()
-  write(paste("\n===================\n=====Cluster ",writeCluster,"=====\n===================\n",sep=""),file=paste(figPath,"clusters.txt",sep=""),append=TRUE)
-  for (i in 1:length(clusterTable [[writeCluster]])) {
-    if (i != length(clusterTable [[writeCluster]])){
-      write(paste(clusterTable [[writeCluster]][i],"    ",as.character(docs_orig[[clusterTable [[writeCluster]][i]]])),file=paste(figPath,"clusters.txt",sep=""),append=TRUE)
-      listClusters[i] <- as.character(docs_orig[[clusterTable [[writeCluster]][i]]])}
-    else if (i == length(clusterTable [[writeCluster]])){ 
-      write(paste(clusterTable [[writeCluster]][i],"    ",as.character(docs_orig[[clusterTable [[writeCluster]][i]]])),file=paste(figPath,"clusters.txt",sep=""),append=TRUE)
-      listClusters[i] <- as.character(docs_orig[[clusterTable [[writeCluster]][i]]])
-      bigClusterList[[writeCluster]] <- listClusters
-      #    dtmCluster <- create_matrix(bigClusterList[[writeCluster]],stemWords=TRUE, 
-      #                                removeStopwords=TRUE, 
-      #                                minWordLength=1,
-      #                                removePunctuation= TRUE)
-      docsCluster <- Corpus(VectorSource(bigClusterList[[writeCluster]]))
-      docsCluster <- tm_map(docsCluster, removePunctuation)	#Remove punctuation
-      docsCluster <- tm_map(docsCluster, removeNumbers) 	#Remove numbers
-      docsCluster <- tm_map(docsCluster, tolower) 			#Force lower case
-      docsCluster <- tm_map(docsCluster, stripWhitespace) 	#Remove white space
-      
-      docsCluster <- tm_map(docsCluster, removeWords, myStopwords)
-      #Remove words that only occur once
-      docsCluster <- tm_map(docsCluster, removeWords, names(subset(freq_raw_ord,freq_raw_ord==1)))
-      #Make plain text
-      docsCluster <- tm_map(docsCluster, stemDocument)		#Stem documents
-      docsCluster <- tm_map(docsCluster, PlainTextDocument)	
-      ##Calculate freqeuncies
-      dtmCluster <- DocumentTermMatrix(docsCluster)	#Make document term matrix   
-      
-      
-      
-      freq_ordCluster <- sort(colSums(as.matrix(dtmCluster)), decreasing=TRUE)
-      mainClusterTerm[[writeCluster]] <- head(freq_ordCluster,5)
-      write("\n",file=paste(figPath,"clusters.txt",sep=""),append=TRUE)
-      write.table(mainClusterTerm[[writeCluster]],file=paste(figPath,"clusters.txt",sep=""),append=TRUE,col.names = FALSE,quote=FALSE)
-      #    write(mainClusterTerm[[writeCluster]],file=paste(figPath,"clusters.txt",sep=""),append=TRUE)
-    }
-  }
-  
-}
-
-nrow(as.matrix(dtmCluster))/nrow(as.matrix(dtm))
-
-
-#file=paste(figPath,"cluster",writeCluster,".txt",sep="")
-
-##Try k-means clustering
 
 #accumulator for cost results
 cost_df <- data.frame()
@@ -215,7 +149,8 @@ ggplot(data=cost_df, aes(x=cluster, y=cost, group=1)) +
   geom_line(aes(y= fitted), linetype=2)
 dev.off()
 
-Nclusters_kmeans = 20
+Nclusters_kmeans = 15
+Nclusters_kmeans_sub = 10
 kmeans <- kmeans(dtm,Nclusters_kmeans)
 
 #Table of clustered terms
@@ -244,10 +179,7 @@ for (writeCluster in 1:Nclusters_kmeans){
       write(paste("*",as.character(docs_orig[[clusterTable_kmeans [[writeCluster]][i]]]),"\\newline"),file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
     listClusters[i] <- as.character(docs_orig[[clusterTable_kmeans [[writeCluster]][i]]])
     bigClusterList_kmeans[[writeCluster]] <- listClusters
-#    dtmCluster <- create_matrix(bigClusterList_kmeans[[writeCluster]],stemWords=TRUE, 
-#                                removeStopwords=TRUE, 
-#                                minWordLength=1,
-#                                removePunctuation= TRUE)
+
     docsCluster <- Corpus(VectorSource(bigClusterList_kmeans[[writeCluster]]))
     docsCluster <- tm_map(docsCluster, removePunctuation)	#Remove punctuation
     docsCluster <- tm_map(docsCluster, removeNumbers) 	#Remove numbers
@@ -265,9 +197,7 @@ for (writeCluster in 1:Nclusters_kmeans){
     
     freq_ordCluster <- sort(colSums(as.matrix(dtmCluster)), decreasing=TRUE)
     mainClusterTerm_kmeans[[writeCluster]] <- head(freq_ordCluster,3)
-#    write("\n",file=paste(figPath,"clusters_kmeans.txt",sep=""),append=TRUE)
-#    write.table(mainClusterTerm_kmeans[[writeCluster]],file=paste(figPath,"clusters_kmeans.txt",sep=""),append=TRUE,col.names = FALSE,quote=FALSE)
-#    write(mainClusterTerm_kmeans[[writeCluster]],file=paste(figPath,"clusters_kmeans.txt",sep=""),append=TRUE)
+
     inGroup <- which(kmeans$cluster==orderClusterSize[writeCluster])
     within <- dtm[inGroup,]
     out <- dtm[-inGroup,]
@@ -287,12 +217,8 @@ for (writeCluster in 1:Nclusters_kmeans){
     write(names(words)[labels][3],file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
     write("\\newline",file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
     write("\n",file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
-#    write("\\begin{figure}[!]",file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
-#    write("\\centering",file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
-    write(paste("\\includegraphics[width=0.6\\linewidth]{./figures/cluster",writeCluster,".pdf}\n",sep=""),file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
-#    write(paste("\\caption{Frequency of attribute use for cluster ",writeCluster,"}",sep=""),file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
-#    write("\\end{figure}\n",file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
-    
+   write(paste("\\includegraphics[width=0.6\\linewidth]{./figures/cluster",writeCluster,".pdf}\n",sep=""),file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
+   
     }
   }
 }
@@ -320,7 +246,7 @@ dtmSubCluster <- DocumentTermMatrix(docsSubCluster)	#Make document term matrix
 
 rownames(dtmSubCluster)<-labels_sub[[1]]
 
-Nclusters_kmeans_sub = 16
+
 kmeansSub <- kmeans(dtmSubCluster,Nclusters_kmeans_sub)
 
 #Table of clustered terms
@@ -393,16 +319,78 @@ for (writeCluster in 1:Nclusters_kmeans_sub){
       write(names(words)[labels][3],file=paste(figPath,"clusters_kmeans_sub_latex.txt",sep=""),append=TRUE)
       write("\\newline",file=paste(figPath,"clusters_kmeans_sub_latex.txt",sep=""),append=TRUE)
       write("\n",file=paste(figPath,"clusters_kmeans_sub_latex.txt",sep=""),append=TRUE)
-      #    write("\\begin{figure}[!]",file=paste(figPath,"clusters_kmeans_sub_latex.txt",sep=""),append=TRUE)
-      #    write("\\centering",file=paste(figPath,"clusters_kmeans_sub_latex.txt",sep=""),append=TRUE)
-#      write(paste("\\includegraphics[width=0.6\\linewidth]{./figures/cluster",writeCluster,".pdf}\n",sep=""),file=paste(figPath,"clusters_kmeans_sub_latex.txt",sep=""),append=TRUE)
-      #    write(paste("\\caption{Frequency of attribute use for cluster ",writeCluster,"}",sep=""),file=paste(figPath,"clusters_kmeans_sub_latex.txt",sep=""),append=TRUE)
-      #    write("\\end{figure}\n",file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
-      
+  
     }
   }
   
 }
+
+clusterTableAll <- append(clusterTable_kmeans[-1],clusterTable_kmeans_sub)
+orderClusterSizeAll <- order(sapply(clusterTableAll, length),decreasing=T)
+clusterTableAll<-clusterTableAll[orderClusterSizeAll]
+
+bigClusterList_kmeans <- list()
+mainClusterTerm_kmeans <- list()
+write("",file=paste(figPath,"clusters_kmeans.txt",sep=""),append=FALSE)	#Clear file
+write("",file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=FALSE)	#Clear file
+for (writeCluster in 1:(Nclusters_kmeans+Nclusters_kmeans_sub-1)){
+  listClusters <- list()
+  write(paste("\n===================\n=====Cluster ",writeCluster,"=====\n===================\n",sep=""),file=paste(figPath,"clusters_kmeans.txt",sep=""),append=TRUE)
+  write(paste("\\section*{Cluster ",writeCluster,"}\n",sep=""),file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
+  for (i in 1:length(clusterTableAll [[writeCluster]])) {
+    if (i != length(clusterTableAll [[writeCluster]])){
+      write(paste(clusterTableAll [[writeCluster]][i],"    ",as.character(docs_orig[[clusterTableAll [[writeCluster]][i]]])),file=paste(figPath,"clusters_kmeans.txt",sep=""),append=TRUE)
+      write(paste("*",as.character(docs_orig[[clusterTableAll [[writeCluster]][i]]]),"\\newline"),file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
+      listClusters[i] <- as.character(docs_orig[[clusterTableAll [[writeCluster]][i]]])}
+    else if (i == length(clusterTableAll [[writeCluster]])){ 
+      write(paste(clusterTableAll [[writeCluster]][i],"    ",as.character(docs_orig[[clusterTableAll [[writeCluster]][i]]])),file=paste(figPath,"clusters_kmeans.txt",sep=""),append=TRUE)
+      write(paste("*",as.character(docs_orig[[clusterTableAll [[writeCluster]][i]]]),"\\newline"),file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
+      listClusters[i] <- as.character(docs_orig[[clusterTableAll [[writeCluster]][i]]])
+      bigClusterList_kmeans[[writeCluster]] <- listClusters
+      
+      docsCluster <- Corpus(VectorSource(bigClusterList_kmeans[[writeCluster]]))
+      docsCluster <- tm_map(docsCluster, removePunctuation)	#Remove punctuation
+      docsCluster <- tm_map(docsCluster, removeNumbers) 	#Remove numbers
+      docsCluster <- tm_map(docsCluster, tolower) 			#Force lower case
+      docsCluster <- tm_map(docsCluster, stripWhitespace) 	#Remove white space
+      
+      docsCluster <- tm_map(docsCluster, removeWords, myStopwords)
+      #Remove words that only occur once
+      docsCluster <- tm_map(docsCluster, removeWords, names(subset(freq_raw_ord,freq_raw_ord==1)))
+      #Make plain text
+      docsCluster <- tm_map(docsCluster, stemDocument)		#Stem documents
+      docsCluster <- tm_map(docsCluster, PlainTextDocument)	
+      ##Calculate freqeuncies
+      dtmCluster <- DocumentTermMatrix(docsCluster)	#Make document term matrix   
+      
+      freq_ordCluster <- sort(colSums(as.matrix(dtmCluster)), decreasing=TRUE)
+      mainClusterTerm_kmeans[[writeCluster]] <- head(freq_ordCluster,3)
+      
+      inGroup <- clusterTableAll[[writeCluster]]
+      within <- dtm[inGroup,]
+      out <- dtm[setdiff(rownames(doc_labels),inGroup),]
+      words <- apply(within,2,mean) - apply(out,2,mean)
+      labels <- order(words, decreasing=T)[1:3]
+      write("\n",file=paste(figPath,"clusters_kmeans.txt",sep=""),append=TRUE)
+      write.table(names(words)[labels],file=paste(figPath,"clusters_kmeans.txt",sep=""),append=TRUE,col.names = FALSE,quote=FALSE)
+      write("\n",file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
+      write(paste("\\noindent Number of documents in cluster: ",i,"\\newline",sep=""),file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
+      write(paste("\\noindent Percentage of corpus: ",format(i/length(doc_labels)*100,digits = 2,nsmall=1),"\\newline",sep=""),file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
+      write("\n",file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
+      write("\\noindent\\textbf{Cluster labels:}\\newline",file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
+      write(paste("\\noindent",names(words)[labels][1]),file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
+      write("\\newline",file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
+      write(names(words)[labels][2],file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
+      write("\\newline",file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
+      write(names(words)[labels][3],file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
+      write("\\newline",file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
+      write("\n",file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
+      write(paste("\\includegraphics[width=0.6\\linewidth]{./figures/cluster",writeCluster,".pdf}\n",sep=""),file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
+      
+    }
+  }
+}
+
 
 ###################################
 ######Analysis of attribtues#######
@@ -410,12 +398,12 @@ for (writeCluster in 1:Nclusters_kmeans_sub){
 attributeHeaders <- read.csv("attribute_headers.csv",sep=",",header=FALSE)
 attributesAll = rep(0,26)
 
-for (j in 1:Nclusters_kmeans){
+for (j in 1:(Nclusters_kmeans+Nclusters_kmeans_sub-1)){
 clusterID = j
 attributesTotal = rep(0,26)
 
-	for (i in 1:length(clusterTable_kmeans[[clusterID]])){
-	attributes <- read.csv(paste('./texts_all/attributes/',clusterTable_kmeans[[clusterID]][i],sep=""),sep=",",header=FALSE)
+	for (i in 1:length(clusterTableAll[[clusterID]])){
+	attributes <- read.csv(paste('./texts_all/attributes/',clusterTableAll[[clusterID]][i],sep=""),sep=",",header=FALSE)
 	attributesTotal <- attributesTotal + as.numeric(attributes)
 	attributesAll = attributesAll + + as.numeric(attributes)
 	}	#end of i
@@ -486,3 +474,68 @@ library("wordnet")
 initDict("C:\\Program Files (x86)\\WordNet\\2.1\\dict")
 setDict("C:\\Program Files (x86)\\WordNet\\2.1\\dict")
 allTerms <- colnames(as.matrix(dtm_raw))
+
+##CUT
+
+# Nclusters = 30		#40 seems to give good results for all
+# 
+# d_tdm <- dist(t(tdm), method="euclidian")   
+# fit_tdm <- hclust(d=d_tdm, method="ward")   
+# fit_tdm
+# cut_tdm = cutree(fit_tdm,k=Nclusters)
+# pdf(paste(figPath,"dend_docs.pdf",sep=""),width = 48, height = 12)
+# plot(fit_tdm,hang=-1,cex=1)
+# rect.hclust(fit_tdm,k=Nclusters)
+# dev.off()
+# 
+# #Table of clustered terms
+# cutMat <- as.matrix(cutree(fit_tdm,k=Nclusters))
+# clusterTable <- split(row.names(cutMat),cutMat)
+# clusterTable
+# 
+# bigClusterList <- list()
+# mainClusterTerm <- list()
+# write("",file=paste(figPath,"clusters.txt",sep=""),append=FALSE)	#Clear file
+# for (writeCluster in 1:Nclusters){
+#   listClusters <- list()
+#   write(paste("\n===================\n=====Cluster ",writeCluster,"=====\n===================\n",sep=""),file=paste(figPath,"clusters.txt",sep=""),append=TRUE)
+#   for (i in 1:length(clusterTable [[writeCluster]])) {
+#     if (i != length(clusterTable [[writeCluster]])){
+#       write(paste(clusterTable [[writeCluster]][i],"    ",as.character(docs_orig[[clusterTable [[writeCluster]][i]]])),file=paste(figPath,"clusters.txt",sep=""),append=TRUE)
+#       listClusters[i] <- as.character(docs_orig[[clusterTable [[writeCluster]][i]]])}
+#     else if (i == length(clusterTable [[writeCluster]])){ 
+#       write(paste(clusterTable [[writeCluster]][i],"    ",as.character(docs_orig[[clusterTable [[writeCluster]][i]]])),file=paste(figPath,"clusters.txt",sep=""),append=TRUE)
+#       listClusters[i] <- as.character(docs_orig[[clusterTable [[writeCluster]][i]]])
+#       bigClusterList[[writeCluster]] <- listClusters
+#       #    dtmCluster <- create_matrix(bigClusterList[[writeCluster]],stemWords=TRUE, 
+#       #                                removeStopwords=TRUE, 
+#       #                                minWordLength=1,
+#       #                                removePunctuation= TRUE)
+#       docsCluster <- Corpus(VectorSource(bigClusterList[[writeCluster]]))
+#       docsCluster <- tm_map(docsCluster, removePunctuation)	#Remove punctuation
+#       docsCluster <- tm_map(docsCluster, removeNumbers) 	#Remove numbers
+#       docsCluster <- tm_map(docsCluster, tolower) 			#Force lower case
+#       docsCluster <- tm_map(docsCluster, stripWhitespace) 	#Remove white space
+#       
+#       docsCluster <- tm_map(docsCluster, removeWords, myStopwords)
+#       #Remove words that only occur once
+#       docsCluster <- tm_map(docsCluster, removeWords, names(subset(freq_raw_ord,freq_raw_ord==1)))
+#       #Make plain text
+#       docsCluster <- tm_map(docsCluster, stemDocument)		#Stem documents
+#       docsCluster <- tm_map(docsCluster, PlainTextDocument)	
+#       ##Calculate freqeuncies
+#       dtmCluster <- DocumentTermMatrix(docsCluster)	#Make document term matrix   
+#       
+#       
+#       
+#       freq_ordCluster <- sort(colSums(as.matrix(dtmCluster)), decreasing=TRUE)
+#       mainClusterTerm[[writeCluster]] <- head(freq_ordCluster,5)
+#       write("\n",file=paste(figPath,"clusters.txt",sep=""),append=TRUE)
+#       write.table(mainClusterTerm[[writeCluster]],file=paste(figPath,"clusters.txt",sep=""),append=TRUE,col.names = FALSE,quote=FALSE)
+#       #    write(mainClusterTerm[[writeCluster]],file=paste(figPath,"clusters.txt",sep=""),append=TRUE)
+#     }
+#   }
+#   
+# }
+# 
+# nrow(as.matrix(dtmCluster))/nrow(as.matrix(dtm))
