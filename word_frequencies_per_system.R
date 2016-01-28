@@ -4,7 +4,8 @@ rm(list=ls())
 #Load libraries
 library(tm)
 library(ggplot2)
-library(SnowballC)   
+library(SnowballC)
+library(grid)
 
 set.seed(12345)
 system = "all"
@@ -58,7 +59,9 @@ myStopwords <- setdiff(stopwords("english"),c("during","between","into","before"
 myStopwords <- c(myStopwords,c("doesnt","sound","sounds","bit","think","also","downmix","good","better",
                                "slightly","seems","there","needs","little","get","like","feels","mix","clips","clip","lack",
                                "increase","decrease","lower","raise","slight","better","thinner","nice","perfect",
-                               "cleaner","very","low","sudden","slight","too","excllent","reduce"))
+                               "cleaner","very","low","sudden","slight","too","excllent","reduce","noticible",
+                               "previous","add","between","sides","down","sources"))
+myStopwords <- c(myStopwords,c("front","rear","left","right","above","central","surround"))
 myStopwords <- c(myStopwords,c("actors","hubub","man","child","Children","vo","dialogue",
                                "loudhailer","lady","kid","Voice","crowd","dog","bark",
                                "violins","music","chord","narrator","narrators","woodpecker",
@@ -149,7 +152,7 @@ ggplot(data=cost_df, aes(x=cluster, y=cost, group=1)) +
   geom_line(aes(y= fitted), linetype=2)
 dev.off()
 
-Nclusters_kmeans = 15
+Nclusters_kmeans = 21
 Nclusters_kmeans_sub = 10
 kmeans <- kmeans(dtm,Nclusters_kmeans)
 
@@ -202,12 +205,12 @@ for (writeCluster in 1:Nclusters_kmeans){
     within <- dtm[inGroup,]
     out <- dtm[-inGroup,]
     words <- apply(within,2,mean) - apply(out,2,mean)
-    labels <- order(words, decreasing=T)[1:3]
+    labels <- order(words, decreasing=T)[1:10]
     write("\n",file=paste(figPath,"clusters_kmeans.txt",sep=""),append=TRUE)
     write.table(names(words)[labels],file=paste(figPath,"clusters_kmeans.txt",sep=""),append=TRUE,col.names = FALSE,quote=FALSE)
     write("\n",file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
     write(paste("\\noindent Number of documents in cluster: ",i,"\\newline",sep=""),file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
-    write(paste("\\noindent Percentage of corpus: ",format(i/length(doc_labels)*100,digits = 2,nsmall=1),"\\newline",sep=""),file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
+    write(paste("\\noindent Percentage of corpus: ",format(i/dim(doc_labels)[1]*100,digits = 2,nsmall=1),"\\newline",sep=""),file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
     write("\n",file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
     write("\\noindent\\textbf{Cluster labels:}\\newline",file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
     write(paste("\\noindent",names(words)[labels][1]),file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
@@ -304,12 +307,12 @@ for (writeCluster in 1:Nclusters_kmeans_sub){
       within <- dtmSubCluster[inGroup,]
       out <- dtmSubCluster[-inGroup,]
       words <- apply(within,2,mean) - apply(out,2,mean)
-      labels <- order(words, decreasing=T)[1:3]
+      labels <- order(words, decreasing=T)[1:10]
       write("\n",file=paste(figPath,"clusters_kmeans_sub.txt",sep=""),append=TRUE)
       write.table(names(words)[labels],file=paste(figPath,"clusters_kmeans_sub.txt",sep=""),append=TRUE,col.names = FALSE,quote=FALSE)
       write("\n",file=paste(figPath,"clusters_kmeans_sub_latex.txt",sep=""),append=TRUE)
       write(paste("\\noindent Number of documents in cluster: ",i,"\\newline",sep=""),file=paste(figPath,"clusters_kmeans_sub_latex.txt",sep=""),append=TRUE)
-      write(paste("\\noindent Percentage of corpus: ",format(i/length(doc_labels)*100,digits = 2,nsmall=1),"\\newline",sep=""),file=paste(figPath,"clusters_kmeans_sub_latex.txt",sep=""),append=TRUE)
+      write(paste("\\noindent Percentage of corpus: ",format(i/dim(doc_labels)[1]*100,digits = 2,nsmall=1),"\\newline",sep=""),file=paste(figPath,"clusters_kmeans_sub_latex.txt",sep=""),append=TRUE)
       write("\n",file=paste(figPath,"clusters_kmeans_sub_latex.txt",sep=""),append=TRUE)
       write("\\noindent\\textbf{Cluster labels:}\\newline",file=paste(figPath,"clusters_kmeans_sub_latex.txt",sep=""),append=TRUE)
       write(paste("\\noindent",names(words)[labels][1]),file=paste(figPath,"clusters_kmeans_sub_latex.txt",sep=""),append=TRUE)
@@ -339,11 +342,15 @@ for (writeCluster in 1:(Nclusters_kmeans+Nclusters_kmeans_sub-1)){
   write(paste("\\section*{Cluster ",writeCluster,"}\n",sep=""),file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
   for (i in 1:length(clusterTableAll [[writeCluster]])) {
     if (i != length(clusterTableAll [[writeCluster]])){
-      write(paste(clusterTableAll [[writeCluster]][i],"    ",as.character(docs_orig[[clusterTableAll [[writeCluster]][i]]])),file=paste(figPath,"clusters_kmeans.txt",sep=""),append=TRUE)
+      #write(paste(clusterTableAll [[writeCluster]][i],"    ",as.character(docs_orig[[clusterTableAll [[writeCluster]][i]]])),file=paste(figPath,"clusters_kmeans.txt",sep=""),append=TRUE)
+      write(paste(as.character(docs_orig[[clusterTableAll [[writeCluster]][i]]])),file=paste(figPath,"clusters_kmeans.txt",sep=""),append=TRUE)
+      
       write(paste("*",as.character(docs_orig[[clusterTableAll [[writeCluster]][i]]]),"\\newline"),file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
       listClusters[i] <- as.character(docs_orig[[clusterTableAll [[writeCluster]][i]]])}
     else if (i == length(clusterTableAll [[writeCluster]])){ 
-      write(paste(clusterTableAll [[writeCluster]][i],"    ",as.character(docs_orig[[clusterTableAll [[writeCluster]][i]]])),file=paste(figPath,"clusters_kmeans.txt",sep=""),append=TRUE)
+      #write(paste(clusterTableAll [[writeCluster]][i],"    ",as.character(docs_orig[[clusterTableAll [[writeCluster]][i]]])),file=paste(figPath,"clusters_kmeans.txt",sep=""),append=TRUE)
+      write(paste(as.character(docs_orig[[clusterTableAll [[writeCluster]][i]]])),file=paste(figPath,"clusters_kmeans.txt",sep=""),append=TRUE)
+      
       write(paste("*",as.character(docs_orig[[clusterTableAll [[writeCluster]][i]]]),"\\newline"),file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
       listClusters[i] <- as.character(docs_orig[[clusterTableAll [[writeCluster]][i]]])
       bigClusterList_kmeans[[writeCluster]] <- listClusters
@@ -370,20 +377,20 @@ for (writeCluster in 1:(Nclusters_kmeans+Nclusters_kmeans_sub-1)){
       within <- dtm[inGroup,]
       out <- dtm[setdiff(rownames(doc_labels),inGroup),]
       words <- apply(within,2,mean) - apply(out,2,mean)
-      labels <- order(words, decreasing=T)[1:3]
+      labels <- order(words, decreasing=T)[1:10]
       write("\n",file=paste(figPath,"clusters_kmeans.txt",sep=""),append=TRUE)
       write.table(names(words)[labels],file=paste(figPath,"clusters_kmeans.txt",sep=""),append=TRUE,col.names = FALSE,quote=FALSE)
       write("\n",file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
       write(paste("\\noindent Number of documents in cluster: ",i,"\\newline",sep=""),file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
-      write(paste("\\noindent Percentage of corpus: ",format(i/length(doc_labels)*100,digits = 2,nsmall=1),"\\newline",sep=""),file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
+      write(paste("\\noindent Percentage of corpus: ",format(i/dim(doc_labels)[1]*100,digits = 2,nsmall=1),"\\newline",sep=""),file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
       write("\n",file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
       write("\\noindent\\textbf{Cluster labels:}\\newline",file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
-      write(paste("\\noindent",names(words)[labels][1]),file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
+      for (j in 1:length(labels)){
+        if (names(words)[labels][j]=="act") {break}
+      write(paste("\\noindent",names(words)[labels][j]),file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
       write("\\newline",file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
-      write(names(words)[labels][2],file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
-      write("\\newline",file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
-      write(names(words)[labels][3],file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
-      write("\\newline",file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
+      }
+      
       write("\n",file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
       write(paste("\\includegraphics[width=0.6\\linewidth]{./figures/cluster",writeCluster,".pdf}\n",sep=""),file=paste(figPath,"clusters_kmeans_latex.txt",sep=""),append=TRUE)
       
@@ -405,10 +412,10 @@ attributesTotal = rep(0,26)
 	for (i in 1:length(clusterTableAll[[clusterID]])){
 	attributes <- read.csv(paste('./texts_all/attributes/',clusterTableAll[[clusterID]][i],sep=""),sep=",",header=FALSE)
 	attributesTotal <- attributesTotal + as.numeric(attributes)
-	attributesAll = attributesAll + + as.numeric(attributes)
+	attributesAll = attributesAll + as.numeric(attributes)
 	}	#end of i
-
-attributesExpected = rep(sum(attributesTotal)/length(attributesTotal),length(attributesTotal))
+#attributesExpected = rep(sum(attributesTotal)/length(attributesTotal),length(attributesTotal))
+attributesExpected = i/2
 Fsig_pos <- 1.96*sqrt(attributesExpected) + attributesExpected
 Fsig_neg <- -1.96*sqrt(attributesExpected) + attributesExpected
 dfAttributes = data.frame(attributes=attributesTotal,attributesExpected = attributesExpected, label=t(attributeHeaders[1:26]))
@@ -426,30 +433,24 @@ dev.off()
 }	#end of j
 
 
-attributesExpected = rep(sum(attributesAll)/length(attributesAll),length(attributesAll))
-Fsig_pos <- 1.96*sqrt(attributesExpected) + attributesExpected
-Fsig_neg <- -1.96*sqrt(attributesExpected) + attributesExpected
-dfAttributes = data.frame(attributes=attributesAll,attributesExpected = attributesExpected, label=t(attributeHeaders[1:26]))
-dfAttributes$label = factor(dfAttributes$label,levels=dfAttributes[order(dfAttributes$attributes),"label"])		#Set order as a factor, so that we can plot in ascending order
 
-write.table(data.frame(attributes=attributesAll,label=t(attributeHeaders[1:26])),file=paste(figPath,"dfattributes",system,".csv"),sep=",",col.names=TRUE,row.names=FALSE)
-library(grid)
-p <- ggplot(data=dfAttributes,aes(x = label,y = attributes)) + geom_bar(stat="identity") 
-p <- p + theme_bw() + geom_line(data=dfAttributes,aes(x = 1:26,y = Fsig_pos),colour="red",size=2,linetype="dashed") + geom_line(data=dfAttributes,aes(x = 1:26,y = Fsig_neg),colour="red",size=2,linetype="dashed")
-p <- p + theme(axis.text.x=element_text(angle=45, hjust=1,size=rel(2)),axis.text.y=element_text(size=rel(2)),axis.title=element_text(size=rel(2)),plot.margin=unit(c(0.5,0.5,0.5,2),"cm")) + ylab("Count") + xlab("")
-
-pdf(paste(figPath,"clustering_attributes/all.pdf",sep=""),width = 15, height = 10)
-print(p)
-dev.off()
 
 dataGrouped <- read.csv("attributes_sorted_systems_grouped.csv")
 systems <- unique(dataGrouped$system)
 for (i in 1:(dim(attributeHeaders)[2]-3)){
 dataPlot <- dataGrouped[which(dataGrouped$attribute==as.character(attributeHeaders[[i]])),]
+attributesExpected = rep(sum(dataPlot$count)/length(dataPlot$count),length(dataPlot$count))
+#attributesExpected = 16
+dataPlot$Fsig_pos <- 1.96*sqrt(attributesExpected) + attributesExpected
+dataPlot$Fsig_neg <- -1.96*sqrt(attributesExpected) + attributesExpected
 
-p <- ggplot(dataPlot, aes(attribute, count, fill = system)) + 
-  geom_bar(stat="identity", position = "dodge") + theme_bw()
-  scale_fill_brewer(palette = "Set1")
+p <- ggplot(dataPlot, aes(system, count)) + 
+  geom_bar(stat="identity", position = "dodge") + theme_bw() +
+  geom_line(data=dataPlot,aes(x = system,y = Fsig_pos,group=1),colour="red",size=2,linetype="dashed") + 
+  geom_line(data=dataPlot,aes(x = system,y = Fsig_neg,group=1),colour="red",size=2,linetype="dashed") +
+  theme(axis.text.x=element_text(angle=45, hjust=1,size=rel(2)),axis.text.y=element_text(size=rel(2)),axis.title=element_text(size=rel(2)),plot.margin=unit(c(0.5,0.5,0.5,2),"cm")) + 
+  ylab("Count") + xlab("") + ggtitle(as.character(attributeHeaders[[i]]))
+#  scale_fill_brewer(palette = "Set1")
   
   pdf(paste(figPath,"clustering_attributes/",as.character(attributeHeaders[[i]]),".pdf",sep=""),width = 12, height = 8)
   print(p)
@@ -468,12 +469,80 @@ data9_1 <- dataGrouped[which(dataGrouped$system=='9_1'),]
 dataMatrix_2_0 <- dataGrouped[which(dataGrouped$system=='matrix_2_0'),]
 dataMatrix_5_1 <- dataGrouped[which(dataGrouped$system=='matrix_5_1'),]
 
+attributesAll = data2_0[,3] + data5_1[,3] + data9_1[,3] + dataMatrix_2_0[,3] + dataMatrix_5_1[,3]
+
+
+attributesAllProportions <- attributesAll/160
+p0 <- 0.5
+zAll <- (attributesAllProportions-p0)/sqrt((p0*(1-p0))/160)
+attributeHeaders[which(zAll>1.96)]
+
+p0system <- 0.5
+attributes2_0Proportions <- data2_0[,3]/32
+z2_0 <- (attributes2_0Proportions-p0system)/sqrt((p0system*(1-p0system))/32)
+attributeHeaders[which(z2_0>1.96)]
+attributeHeaders[which(z2_0>-1.96)]
+
+attributes5_1Proportions <- data5_1[,3]/32
+z5_1 <- (attributes5_1Proportions-p0system)/sqrt((p0system*(1-p0system))/32)
+attributeHeaders[which(z5_1>1.96)]
+attributeHeaders[which(z5_1>-1.96)]
+
+attributes9_1Proportions <- data9_1[,3]/32
+z9_1 <- (attributes9_1Proportions-p0system)/sqrt((p0system*(1-p0system))/32)
+attributeHeaders[which(z9_1>1.96)]
+attributeHeaders[which(z9_1>-1.96)]
+
+attributesMatrix_5_1Proportions <- dataMatrix_5_1[,3]/32
+zMatrix_5_1 <- (attributesMatrix_5_1Proportions-p0system)/sqrt((p0system*(1-p0system))/32)
+attributeHeaders[which(zMatrix_5_1>1.96)]
+attributeHeaders[which(zMatrix_5_1>-1.96)]
+
+attributesMatrix_2_0Proportions <- dataMatrix_2_0[,3]/32
+zMatrix_2_0 <- (attributesMatrix_2_0Proportions-p0system)/sqrt((p0system*(1-p0system))/32)
+attributeHeaders[which(zMatrix_2_0>1.96)]
+attributeHeaders[which(zMatrix_2_0>-1.96)]
+
+#attributesExpected = rep(sum(attributesAll)/length(attributesAll),length(attributesAll))
+attributesExpected = 160/26
+Fsig_pos <- 1.96*sqrt(attributesExpected) + attributesExpected
+Fsig_neg <- -1.96*sqrt(attributesExpected) + attributesExpected
+dfAttributes = data.frame(attributes=attributesAll,attributesExpected = attributesExpected, label=t(attributeHeaders[1:26]))
+dfAttributes$label = factor(dfAttributes$label,levels=dfAttributes[order(dfAttributes$attributes),"label"])		#Set order as a factor, so that we can plot in ascending order
+
+#write.table(data.frame(attributes=attributesAll,label=t(attributeHeaders[1:26])),file=paste(figPath,"dfattributes",system,".csv"),sep=",",col.names=TRUE,row.names=FALSE)
+p <- ggplot(data=dfAttributes,aes(x = label,y = attributes)) + geom_bar(stat="identity") 
+p <- p + theme_bw() + geom_line(data=dfAttributes,aes(x = 1:26,y = Fsig_pos),colour="red",size=2,linetype="dashed") + geom_line(data=dfAttributes,aes(x = 1:26,y = Fsig_neg),colour="red",size=2,linetype="dashed")
+p <- p + theme(axis.text.x=element_text(angle=45, hjust=1,size=rel(2)),axis.text.y=element_text(size=rel(2)),axis.title=element_text(size=rel(2)),plot.margin=unit(c(0.5,0.5,0.5,2),"cm")) + ylab("Count") + xlab("")
+
+pdf(paste(figPath,"clustering_attributes/all.pdf",sep=""),width = 15, height = 10)
+print(p)
+dev.off()
+
+##Crosstable
+
+dfDataGrouped <- as.data.frame(dataGrouped)
+dfDataGrouped$system <- factor(dfDataGrouped$system)
+dfDataGrouped$attribute <- factor(dfDataGrouped$attribute)
+attach(dfDataGrouped)
+contTable <- xtabs(count~system+attribute,dfDataGrouped)
+summary(contTable)
+detach(dfDataGrouped)
+
+##MRCV
+#library(MRCV)
+
+#dataMRCV <- read.csv("attributes_sorted_all_participants_MRCV.csv")
+#item.response.table(data=dataMRCV,I=26,J=5)
+
+#MI.test(data=dataMRCV,I=26,J=1,type="rs2",B=100,plot.hist=F)
+
 
 ##Synonyms
-library("wordnet")
-initDict("C:\\Program Files (x86)\\WordNet\\2.1\\dict")
-setDict("C:\\Program Files (x86)\\WordNet\\2.1\\dict")
-allTerms <- colnames(as.matrix(dtm_raw))
+#library("wordnet")
+#initDict("C:\\Program Files (x86)\\WordNet\\2.1\\dict")
+#setDict("C:\\Program Files (x86)\\WordNet\\2.1\\dict")
+#allTerms <- colnames(as.matrix(dtm_raw))
 
 ##CUT
 
